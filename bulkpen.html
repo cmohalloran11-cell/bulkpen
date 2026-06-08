@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BULKPEN — Live Opener & Bulk-Reliever Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Hanken+Grotesk:wght@400;500;600;800&family=Spline+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0f0c; --bg2:#0e1612; --panel:#111c16; --panel2:#0d1611;
+    --chalk:#f2efe4; --muted:#8a9b8f; --muted2:#5f7167;
+    --stitch:#e23b3b; --stitch-deep:#b3262b; --turf:#3fae6b; --gold:#e8b94b;
+    --line:rgba(242,239,228,.10); --line2:rgba(242,239,228,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg); color:var(--chalk);
+    font-family:'Hanken Grotesk',sans-serif; line-height:1.45; min-height:100vh;
+    background-image:
+      radial-gradient(900px 500px at 78% -8%, rgba(232,185,75,.10), transparent 60%),
+      radial-gradient(800px 520px at 8% 4%, rgba(63,174,107,.08), transparent 60%),
+      radial-gradient(1200px 700px at 50% 120%, rgba(226,59,59,.06), transparent 55%);
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.5;
+    background-image:linear-gradient(var(--line2) 1px,transparent 1px),linear-gradient(90deg,var(--line2) 1px,transparent 1px);
+    background-size:46px 46px; mask-image:radial-gradient(circle at 50% 30%,#000,transparent 80%);
+  }
+  .wrap{position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:0 18px 90px}
+
+  header{position:sticky; top:0; z-index:40; margin:0 -18px 0; padding:14px 18px 12px;
+    background:linear-gradient(180deg, rgba(10,15,12,.96), rgba(10,15,12,.82));
+    backdrop-filter:blur(10px); border-bottom:1px dashed var(--line);}
+  .brandrow{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  .logo{display:flex; align-items:baseline; gap:10px}
+  .logo h1{font-family:'Anton',sans-serif; font-size:clamp(30px,7vw,52px); letter-spacing:.02em; line-height:.85;
+    background:linear-gradient(180deg,var(--chalk),#cfc9b6); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .ball{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#e9e4d4 60%,#c9c2ad);
+    position:relative; box-shadow:0 0 0 2px rgba(0,0,0,.25), 0 8px 22px rgba(232,185,75,.18); flex:0 0 auto}
+  .ball::before,.ball::after{content:"";position:absolute;top:6px;bottom:6px;width:9px;border:1.6px solid var(--stitch);
+    border-top:none;border-bottom:none;border-radius:50%}
+  .ball::before{left:6px;border-right:none} .ball::after{right:6px;border-left:none}
+  .tag{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-weight:600;font-family:'Spline Sans Mono',monospace}
+  .controls{display:flex; gap:8px; align-items:center; margin-left:auto; flex-wrap:wrap}
+  .ctl{display:flex; align-items:center; gap:7px; background:var(--panel); border:1px solid var(--line); padding:7px 11px; border-radius:9px; font-size:13px}
+  .ctl label{color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.14em; font-weight:600}
+  input[type=date]{background:transparent; border:none; color:var(--chalk); font-family:'Spline Sans Mono',monospace; font-size:13px; color-scheme:dark; cursor:pointer}
+  button{font-family:'Hanken Grotesk',sans-serif; cursor:pointer; border:none; color:inherit}
+  .btn{background:linear-gradient(180deg,#15231b,#101b15); border:1px solid var(--line); color:var(--chalk);
+    padding:8px 13px; border-radius:9px; font-weight:600; font-size:13px; transition:.15s; display:flex; align-items:center; gap:6px}
+  .btn:hover{border-color:rgba(242,239,228,.28); transform:translateY(-1px)}
+  .btn.primary{background:linear-gradient(180deg,var(--stitch),var(--stitch-deep)); border-color:transparent; box-shadow:0 8px 24px rgba(226,59,59,.28)}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn:disabled{opacity:.5; cursor:not-allowed; transform:none}
+
+  .apistat{font-family:'Spline Sans Mono',monospace; font-size:10.5px; margin-top:7px; color:var(--muted2); display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .apidot{width:7px;height:7px;border-radius:50%;background:var(--muted2)}
+  .apidot.ok{background:var(--turf)} .apidot.proxy{background:var(--gold)} .apidot.fail{background:var(--stitch)}
+
+  .sec-head{display:flex; align-items:flex-end; gap:12px; margin:34px 0 14px; flex-wrap:wrap}
+  .sec-head .kicker{font-family:'Spline Sans Mono',monospace; font-size:11px; letter-spacing:.28em; text-transform:uppercase; color:var(--gold)}
+  .sec-head h2{font-family:'Anton',sans-serif; font-size:clamp(22px,4.4vw,34px); letter-spacing:.01em; line-height:1}
+  .sec-head .note{color:var(--muted); font-size:12.5px; margin-left:auto; max-width:420px; text-align:right}
+
+  .seg{display:inline-flex; background:var(--panel); border:1px solid var(--line); border-radius:9px; overflow:hidden; margin-left:auto}
+  .seg button{padding:7px 13px; font-size:12px; font-weight:600; color:var(--muted); background:transparent; transition:.15s}
+  .seg button.on{background:linear-gradient(180deg,var(--stitch),var(--stitch-deep)); color:#fff}
+
+  #leaderWrap{display:none}
+  .lead-list{display:grid; gap:10px}
+  .lead-row{display:grid; grid-template-columns:42px 54px 1fr auto; gap:14px; align-items:center;
+    background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--line); border-radius:13px; padding:13px 15px; position:relative; overflow:hidden}
+  .lead-row::after{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--turf)}
+  .lead-row.r1::after{background:var(--gold)} .lead-row.r2::after{background:#cdd3cf} .lead-row.r3::after{background:#cd9a5b}
+  .rank{font-family:'Anton',sans-serif; font-size:26px; color:var(--muted2); text-align:center; line-height:1}
+  .lead-row.r1 .rank{color:var(--gold)} .lead-row.r2 .rank{color:#cdd3cf} .lead-row.r3 .rank{color:#cd9a5b}
+  .pname{font-weight:800; font-size:16px}
+  .pmeta{color:var(--muted); font-size:12.5px; margin-top:1px}
+  .pmeta b{color:var(--chalk); font-weight:600}
+  .scorebadge{font-family:'Spline Sans Mono',monospace; font-weight:700; text-align:center; min-width:64px}
+  .scorebadge .num{font-size:24px; line-height:1}
+  .scorebadge .lbl{font-size:9px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted)}
+  /* transparent "silo" cutouts: no circle, no background, whole figure fits via contain */
+  .shot{object-fit:contain; object-position:center bottom; flex:0 0 auto; padding:0}
+  .shot-pp{width:40px;height:42px}
+  .shot-cand{width:34px;height:36px}
+  .shot-lead{width:54px;height:56px}
+  .chips{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px}
+  .chip{font-family:'Spline Sans Mono',monospace; font-size:10.5px; padding:2px 8px; border-radius:20px; background:rgba(242,239,228,.06); border:1px solid var(--line); color:var(--muted)}
+  .chip.hot{color:var(--gold); border-color:rgba(232,185,75,.35)}
+  .chip.green{color:var(--turf); border-color:rgba(63,174,107,.35)}
+  .chip.warn{color:#f0a0a0; border-color:rgba(226,59,59,.4)}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:14px}
+  .game{background:linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--line); border-radius:15px; overflow:hidden; transition:.18s}
+  .game:hover{border-color:rgba(242,239,228,.2)}
+  .gtop{display:flex; justify-content:space-between; align-items:center; padding:11px 15px; border-bottom:1px dashed var(--line); font-size:12px; color:var(--muted); font-family:'Spline Sans Mono',monospace}
+  .gstatus{display:flex; align-items:center; gap:6px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--muted2)}
+  .dot.live{background:var(--stitch); animation:pulse 1.6s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(226,59,59,.6)}70%{box-shadow:0 0 0 7px rgba(226,59,59,0)}100%{box-shadow:0 0 0 0 rgba(226,59,59,0)}}
+  .matchup{padding:6px 15px 4px}
+  .pp{display:flex; align-items:center; gap:9px; padding:9px 0}
+  .pp + .pp{border-top:1px solid var(--line2)}
+  .abbr{font-family:'Anton',sans-serif; font-size:17px; width:38px; color:var(--gold); letter-spacing:.02em; flex:0 0 auto}
+  .ppinfo{flex:1; min-width:0}
+  .ppname{font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .ppstat{font-family:'Spline Sans Mono',monospace; font-size:10.5px; color:var(--muted); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .risk{flex:0 0 84px; text-align:right}
+  .risklbl{font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:700; margin-bottom:3px}
+  .meter{height:6px; border-radius:6px; background:rgba(242,239,228,.08); overflow:hidden; position:relative}
+  .meter > i{position:absolute; left:0; top:0; bottom:0; border-radius:6px; background:linear-gradient(90deg,var(--turf),var(--gold) 55%,var(--stitch))}
+  .gfoot{padding:8px 15px 13px}
+  .predict-btn{width:100%; background:rgba(226,59,59,.10); border:1px dashed rgba(226,59,59,.4); color:#f4b1b1; padding:9px; border-radius:9px; font-weight:600; font-size:12.5px; transition:.15s}
+  .predict-btn:hover{background:rgba(226,59,59,.18)}
+  .predict-btn.done{border-style:solid; border-color:var(--line); background:transparent; color:var(--muted); cursor:default}
+  .cand{display:flex; align-items:flex-start; gap:10px; padding:8px 10px; background:rgba(242,239,228,.04); border:1px solid var(--line2); border-radius:9px; margin-top:7px}
+  .cand .cs{font-family:'Spline Sans Mono',monospace; font-weight:700; font-size:15px; min-width:34px; text-align:center; padding-top:1px}
+  .cand .cn{font-weight:700; font-size:13.5px}
+  .cand .cm{font-family:'Spline Sans Mono',monospace; font-size:10.5px; color:var(--muted); margin-top:1px}
+  .cand.top{background:rgba(232,185,75,.08); border-color:rgba(232,185,75,.3)}
+  .cand.top .cs{color:var(--gold)}
+
+  .state{text-align:center; padding:60px 20px; color:var(--muted)}
+  .state .big{font-family:'Anton',sans-serif; font-size:30px; color:var(--chalk); margin-bottom:6px}
+  .spinner{width:38px;height:38px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--stitch); margin:0 auto 16px; animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .progress{font-family:'Spline Sans Mono',monospace; font-size:12px; color:var(--muted); margin-top:8px}
+  .err{background:rgba(226,59,59,.1); border:1px solid rgba(226,59,59,.35); color:#f4b1b1; padding:16px; border-radius:12px; font-size:13.5px; line-height:1.6}
+
+  .legend{display:flex; gap:16px; flex-wrap:wrap; margin:10px 0 0; font-size:11.5px; color:var(--muted); font-family:'Spline Sans Mono',monospace}
+  .legend span{display:flex; align-items:center; gap:6px}
+  .swatch{width:12px;height:12px;border-radius:3px}
+
+  footer{margin-top:46px; padding-top:18px; border-top:1px dashed var(--line); color:var(--muted2); font-size:11.5px; font-family:'Spline Sans Mono',monospace; line-height:1.7}
+  footer b{color:var(--muted)}
+  a{color:var(--gold)}
+  @media(max-width:560px){
+    .controls{width:100%; margin-left:0}
+    .ctl,.btn{flex:1}
+    .sec-head .note{text-align:left; margin-left:0}
+    .seg{margin-left:0}
+    .risk{flex-basis:84px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brandrow">
+      <div class="logo"><span class="ball" aria-hidden="true"></span><h1>BULKPEN</h1></div>
+      <div class="controls">
+        <div class="ctl"><label for="date">Date</label><input type="date" id="date"></div>
+        <button class="btn" id="refresh" title="Reload schedule">↻ Refresh</button>
+        <button class="btn primary" id="run">🎯 Predict bulk relievers</button>
+      </div>
+    </div>
+    <div class="apistat" id="apistat"><span class="apidot" id="apidot"></span><span id="apitxt">Connecting to MLB Stats API…</span></div>
+  </header>
+
+  <section id="leaderWrap">
+    <div class="sec-head">
+      <div><div class="kicker">The slate ranking</div><h2>Bulk-Reliever Leaderboard</h2></div>
+      <div class="note">Relievers most likely to soak up multiple innings in the date's projected opener / bullpen games. Score blends role fit with recent availability.</div>
+    </div>
+    <div class="lead-list" id="leaderList"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div><div class="kicker">The board</div><h2>Probables &amp; Opener Risk</h2></div>
+      <div class="seg" id="filter">
+        <button data-f="all" class="on">All games</button>
+        <button data-f="open">Openers only</button>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--turf)"></i> Traditional start</span>
+      <span><i class="swatch" style="background:var(--gold)"></i> Possible opener</span>
+      <span><i class="swatch" style="background:var(--stitch)"></i> Likely opener / bullpen</span>
+    </div>
+    <div id="board" style="margin-top:16px"></div>
+  </section>
+
+  <footer>
+    <b>How it works.</b> This page is a thin client: a Python backend pulls the schedule, probables, season stats, and game logs from statsapi.mlb.com (via python-mlb-statsapi) and does all the scoring server-side, then hands this page one ready-made payload. <b>Opener risk</b> = heuristic from each starter's season innings-per-appearance, relief share, and whether a non-starter is listed to start. <b>Bulk Score</b> ranks relievers by innings-per-appearance, swingman history, and workload, then adjusts for <b>recent usage</b> (last-7-day innings &amp; days of rest) to flag who's actually available. <br>
+    Model-free heuristics, not official projections — a smart shortlist, not a guarantee. No affiliation with MLB.
+  </footer>
+</div>
+
+<script>
+/* ---------- thin client ----------
+   All scoring now lives in the Python backend (predict.py). This page fetches
+   ONE payload from /api/predict/<date> and just renders it — no MLB calls, no
+   heuristics in the browser. */
+let PAYLOAD = null, FILTER = "all";
+
+const $ = s => document.querySelector(s);
+const board=$("#board"), run=$("#run"), refresh=$("#refresh"), dateEl=$("#date");
+const leaderWrap=$("#leaderWrap"), leaderList=$("#leaderList");
+const apidot=$("#apidot"), apitxt=$("#apitxt");
+
+function setApi(state, text){ apidot.className="apidot "+state; apitxt.textContent=text; }
+/* MLB headshot CDN, keyed by the person id we already have. "silo" is a head-and-
+   upper-body cutout on a TRANSPARENT background (RGBA PNG), so it blends into the card.
+   The d_…generic… part makes the CDN serve a generic cutout for missing photos. */
+function headshot(id){ return id?`https://img.mlbstatic.com/mlb-photos/image/upload/d_people:generic:headshot:silo:current/w_180,q_auto:best/v1/people/${id}/headshot/silo/current`:""; }
+function todayStr(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+
+/* ---------- games board (rendered from the backend payload) ---------- */
+function gameIsOpener(g){
+  return ["away","home"].some(side=>{
+    const s=g[side];
+    if(!s.probable) return true;                 // no probable = possible bullpen game
+    const o=s.probable.opener;
+    return o.score!=null && o.score>=45;
+  });
+}
+function ppRow(side,g){
+  const s=g[side], abbr=s.abbr||"";
+  if(!s.probable) return `<div class="pp"><span class="abbr">${abbr}</span>
+    <div class="ppinfo"><div class="ppname" style="color:var(--muted)">TBD — bullpen game?</div>
+    <div class="ppstat">no probable announced</div></div>
+    <div class="risk"><div class="risklbl" style="color:var(--stitch)">OPENER?</div>
+    <div class="meter"><i style="width:72%"></i></div></div></div>`;
+  const pp=s.probable, o=pp.opener;
+  const col=o.cls==="red"?"var(--stitch)":o.cls==="gold"?"var(--gold)":o.cls==="green"?"var(--turf)":"var(--muted)";
+  const line=o.score==null?o.label:`${o.g}G/${o.gs}GS · ${o.ipApp.toFixed(1)} IP/app`;
+  const meter=o.score==null?`<div class="meter"><i style="width:0"></i></div>`:`<div class="meter"><i style="width:${Math.max(6,o.score)}%"></i></div>`;
+  return `<div class="pp"><span class="abbr">${abbr}</span>
+    <img class="shot shot-pp" src="${headshot(pp.id)}" alt="" loading="lazy">
+    <div class="ppinfo"><div class="ppname">${pp.name}</div><div class="ppstat">${line}</div></div>
+    <div class="risk"><div class="risklbl" style="color:${col}">${o.label}</div>${meter}</div></div>`;
+}
+function renderBoard(){
+  const games=(PAYLOAD&&PAYLOAD.games)||[];
+  if(!games.length){ board.innerHTML=`<div class="state"><div class="big">No games</div>Nothing scheduled for this date.</div>`; return; }
+  const list = games.map((g,i)=>({g,i})).filter(x=> FILTER==="all" || gameIsOpener(x.g));
+  if(!list.length){ board.innerHTML=`<div class="state"><div class="big">No openers</div>No projected opener / bullpen games on this date. Switch to “All games”.</div>`; return; }
+  board.innerHTML=`<div class="grid">`+list.map(({g,i})=>{
+    const st=g.status||{};
+    return `<div class="game" data-i="${i}">
+      <div class="gtop"><span>${g.away.abbr||""} @ ${g.home.abbr||""}</span>
+      <span class="gstatus"><span class="dot ${st.live?'live':''}"></span>${st.text||""}</span></div>
+      <div class="matchup">${ppRow("away",g)}${ppRow("home",g)}</div>
+      <div class="gfoot"><button class="predict-btn" data-i="${i}">▸ Predict this game's bulk reliever</button>
+      <div class="cands" id="cands-${i}"></div></div></div>`;
+  }).join("")+`</div>`;
+  board.querySelectorAll(".predict-btn").forEach(b=>b.addEventListener("click",()=>predictGame(+b.dataset.i,b)));
+}
+
+/* ---------- reveal pre-computed predictions (no client-side scoring) ---------- */
+function candHTML(c,top){
+  const av=c.avail||{};
+  const rest=av.restDays==null?"—":av.restDays+"d";
+  const chips=[
+    `<span class="chip ${c.multiInning?'green':''}">${c.ipApp.toFixed(2)} IP/app</span>`,
+    `<span class="chip">${c.g}G/${c.gs}GS</span>`,
+    av.label?`<span class="chip ${av.cls}">${av.label} · L7 ${av.ipLast7}IP · ${rest} rest</span>`:""
+  ].join("");
+  return `<div class="cand ${top?'top':''}"><span class="cs">${c.proj!=null?c.proj:c.base}</span>
+    <img class="shot shot-cand" src="${headshot(c.id)}" alt="" loading="lazy">
+    <div style="flex:1;min-width:0"><div class="cn">${c.name}</div>
+    <div class="chips" style="margin-top:4px">${chips}</div></div></div>`;
+}
+function predictGame(i,btn){
+  const g=PAYLOAD.games[i], box=$("#cands-"+i), cand=g.candidates||{};
+  let html="";
+  for(const side of ["away","home"]){
+    const cs=cand[side]||[];
+    if(cs.length){
+      const abbr=g[side].abbr||"";
+      html+=`<div class="cm" style="font-family:'Spline Sans Mono',monospace;margin:9px 0 2px;color:var(--gold)">${abbr} bulk candidates</div>`;
+      html+=cs.map((c,idx)=>candHTML(c,idx===0)).join("");
+    }
+  }
+  box.innerHTML=html||`<div class="cm" style="margin-top:8px;color:var(--muted)">Both probables look like traditional starters — no clear bulk role projected.</div>`;
+  btn.disabled=true; btn.textContent="✓ Prediction loaded"; btn.classList.add("done");
+}
+
+/* ---------- full slate leaderboard (already in the payload) ---------- */
+function showLeaderboard(){
+  const results=(PAYLOAD&&PAYLOAD.leaderboard)||[];
+  leaderWrap.style.display="block";
+  if(!results.length){ leaderList.innerHTML=`<div class="state"><div class="big">Quiet slate</div>No projected opener or bullpen games — every probable looks like a traditional starter.</div>`; }
+  else leaderList.innerHTML=results.map((r,i)=>{
+    const b=r.best, av=b.avail||{}, rest=av.restDays==null?"—":av.restDays+"d";
+    const chips=[
+      `<span class="chip ${b.multiInning?'green':''}">${b.ipApp.toFixed(2)} IP/app</span>`,
+      `<span class="chip">${b.g}G/${b.gs}GS</span>`,
+      b.swing?`<span class="chip hot">swingman</span>`:"",
+      av.label?`<span class="chip ${av.cls}">${av.label} · L7 ${av.ipLast7}IP · ${rest} rest</span>`:""
+    ].join("");
+    return `<div class="lead-row ${i<3?'r'+(i+1):''}"><div class="rank">${r.rank}</div>
+      <img class="shot shot-lead" src="${headshot(b.id)}" alt="" loading="lazy">
+      <div><div class="pname">${b.name}</div>
+      <div class="pmeta"><b>${r.teamAbbr}</b> vs ${r.opp||"?"} · behind ${r.starter} <span style="color:var(--stitch)">(${r.openerLabel})</span></div>
+      <div class="chips">${chips}</div></div>
+      <div class="scorebadge"><div class="num">${b.proj}</div><div class="lbl">Proj</div></div></div>`;
+  }).join("");
+  leaderWrap.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ---------- load: one fetch to the Python backend, then render ---------- */
+async function load(fresh){
+  const date=dateEl.value||todayStr();
+  FILTER="all"; $("#filter").querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.f==="all"));
+  leaderWrap.style.display="none"; PAYLOAD=null;
+  setApi("","Scoring the slate server-side…");
+  board.innerHTML=`<div class="state"><div class="spinner"></div><div class="progress">Scoring the ${date} slate server-side… (reads every bullpen, can take a few seconds)</div></div>`;
+  try{
+    const r=await fetch(`/api/predict/${encodeURIComponent(date)}${fresh?"?fresh=1":""}`, {headers:{Accept:"application/json"}});
+    const j=await r.json();
+    if(!r.ok || j.error) throw new Error(j.error || ("HTTP "+r.status));
+    PAYLOAD=j;
+    setApi("ok", (j.cached?"Cached · ":"Live · ")+(j.dataLayer||"Python backend"));
+    renderBoard();
+  }catch(e){
+    setApi("fail","Backend unreachable");
+    board.innerHTML=`<div class="err"><b>Couldn't reach the BULKPEN backend.</b><br>
+      This page is now a thin client — all scoring is done by the Python backend at <code>/api/predict</code>.
+      Start it with <code>python app.py</code> and open <a href="http://localhost:8000">http://localhost:8000</a>, then refresh.
+      <br><span style="color:var(--muted2)">(${e.message})</span></div>`;
+  }
+}
+
+dateEl.value=todayStr();
+refresh.addEventListener("click",()=>load(true));   // force a server-side recompute
+dateEl.addEventListener("change",()=>load(false));  // cached if computed recently
+run.addEventListener("click",showLeaderboard);
+$("#filter").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b)return;
+  FILTER=b.dataset.f; $("#filter").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); renderBoard(); });
+load();
+</script>
+</body>
+</html>
