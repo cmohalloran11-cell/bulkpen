@@ -90,8 +90,19 @@ class TestBulkScore(unittest.TestCase):
         self.assertIsNone(predict.bulk_score(season(g=1, gs=0, ip=2.0)))
 
     def test_real_starter_excluded(self):
-        # gs/g > 0.6 and ipApp > 4 -> not a bulk arm.
+        # gs/g > 0.5 and ipApp > 3 -> not a bulk arm.
         self.assertIsNone(predict.bulk_score(season(g=10, gs=10, ip=61.0)))
+
+    def test_struggling_short_starter_excluded(self):
+        # 10G/9GS/38IP -> gs/g 0.9, ipApp 3.8. Old guard (>0.6 AND >4) let this
+        # through; tightened guard (>0.5 AND >3) now rejects the rotation arm.
+        self.assertIsNone(predict.bulk_score(season(g=10, gs=9, ip=38.0)))
+
+    def test_piggyback_at_half_starts_kept(self):
+        # gs/g exactly 0.5 is NOT > 0.5 -> a true swing/piggyback arm stays eligible.
+        b = predict.bulk_score(season(g=10, gs=5, ip=45.0))
+        self.assertIsNotNone(b)
+        self.assertTrue(b["swing"])
 
     def test_empty_or_none(self):
         self.assertIsNone(predict.bulk_score(season(empty=True)))

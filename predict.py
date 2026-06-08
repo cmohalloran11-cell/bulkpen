@@ -209,7 +209,10 @@ def bulk_score(stat):
     if g < 2:
         return None
     ip_app = ip / g
-    if gs / g > 0.6 and ip_app > 4:   # a real starter, not a bulk arm
+    # Anyone who starts more than half his games is a rotation arm, not a day-to-day
+    # bulk reliever. (Backtest finding: the old gs/g>0.6 AND ip_app>4 guard let
+    # struggling/short starters through and they over-ranked everyone.)
+    if gs / g > 0.5 and ip_app > 3:
         return None
     score = clamp(jround(ip_app * 38 + (12 if gs > 0 else 0) + min(ip, 40) * 0.4))
     return {"base": score, "ipApp": ip_app, "g": g, "gs": gs, "ip": ip,
@@ -223,6 +226,7 @@ def compute_avail(splits, ref):
     last_date = None
     last_ip = 0.0
     apps7 = 0
+    last_start = None                      # most recent game he STARTED
     for sp in splits:
         d = getattr(sp, "date", None)
         if not d:
@@ -243,7 +247,14 @@ def compute_avail(splits, ref):
         if last_date is None or dd > last_date:
             last_date = dd
             last_ip = ip
+        if (getattr(sp.stat, "games_started", 0) or 0) and (last_start is None or dd > last_start):
+            last_start = dd
     rest_days = (ref - last_date).days if last_date else None
+    # A start in the last ~6 days = active rotation member on his rest cycle, not
+    # available as today's bulk reliever. (Backtest finding: rotation/swing arms
+    # with high IP/app kept topping the list on days they weren't even pitching.)
+    days_since_start = (ref - last_start).days if last_start else None
+    started_recently = days_since_start is not None and days_since_start <= 6
     label, cls, adj = "Available", "", 0
     if rest_days is None:
         label, cls, adj = "No recent logs", "", 0
@@ -255,6 +266,7 @@ def compute_avail(splits, ref):
         label, cls, adj = "Fresh", "green", 6
     return {"ipLast7": round(ip_last7 * 10) / 10, "ipLast3": ip_last3,
             "restDays": rest_days, "lastIP": last_ip, "apps7": apps7,
+            "daysSinceStart": days_since_start, "startedRecently": started_recently,
             "label": label, "cls": cls, "adj": adj}
 
 
@@ -279,7 +291,11 @@ def rank_with_usage(cands, season, ref, ex=None):
         list(ex.map(lambda c: get_avail(c["id"], season, ref), cands))
     for c in cands:
         c["av"] = get_avail(c["id"], season, ref)
-        c["proj"] = clamp(c["b"]["base"] + c["av"]["adj"])
+        # Penalize (don't outright drop) arms who started in the last ~6 days: they're
+        # likely rotation members, so they sink below true relievers but stay eligible
+        # if there's no better option.
+        pen = 25 if c["av"].get("startedRecently") else 0
+        c["proj"] = clamp(c["b"]["base"] + c["av"]["adj"] - pen)
     cands.sort(key=lambda c: -c["proj"])
     return cands
 
@@ -345,6 +361,9 @@ def predict(date_str, fresh=False):
                      for g in games for side in ("away", "home")
                      if g["teams"][side].get("probablePitcher")}
         list(ex.map(lambda t: get_season_stat(t[0], t[1], season), probables))
+        # Any pitcher listed to start ANY game today is unavailable as a bulk reliever
+        # (he's in a rotation, not the bullpen) — exclude the whole slate's probables.
+        probable_ids = {pid for pid, _ in probables}
 
         for g in games:
             teams = g["teams"]
@@ -378,11 +397,11 @@ def predict(date_str, fresh=False):
                 if team_id is None:
                     continue
                 cands = team_relievers(team_id, season, ex)
-                cands = [c for c in cands if not pp or c["id"] != pp["id"]][:4]
-                cands = rank_with_usage(cands, season, ref, ex)
+                cands = [c for c in cands if c["id"] not in probable_ids][:6]
+                cands = rank_with_usage(cands, season, ref, ex)[:3]
                 if not cands:
                     continue
-                entry["candidates"][side] = [cand_dict(c) for c in cands[:3]]
+                entry["candidates"][side] = [cand_dict(c) for c in cands]
 
                 # Leaderboard excludes no-data probables (mirrors predictSlate).
                 lead_ok = (pp is None) or (score is not None and score >= 45)

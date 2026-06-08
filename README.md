@@ -43,6 +43,16 @@ python -m unittest test_predict     # 26 unit tests for the scoring functions
 python backtest.py 2026-06-05 ...   # score past predictions vs. who actually ate the innings
 ```
 
+## Deploy to Vercel
+
+The repo includes `vercel.json` + `api/index.py` (a serverless entrypoint that re-exports
+the Flask app). Import the repo at [vercel.com/new](https://vercel.com/new) and deploy — no
+settings needed. All routes are rewritten to the single Python function.
+
+Caveat: the first prediction for a date does a lot of upstream calls (~several seconds), so a
+cold request can approach the function's `maxDuration` (set to 60s; the hobby plan allows up
+to 60s). The server-side cache makes every subsequent request for that date fast.
+
 ## Data layer note
 
 Probable pitchers come straight from the schedule JSON, while season stats / game logs /
