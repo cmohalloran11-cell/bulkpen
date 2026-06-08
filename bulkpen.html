@@ -197,6 +197,11 @@
    All scoring now lives in the Python backend (predict.py). This page fetches
    ONE payload from /api/predict/<date> and just renders it — no MLB calls, no
    heuristics in the browser. */
+function roleClass(r){
+  if(r==="swingman"||r==="ex-starter") return "hot";
+  if(r==="long RP") return "green";
+  return "";
+}
 let PAYLOAD = null, FILTER = "all";
 
 const $ = s => document.querySelector(s);
@@ -258,6 +263,7 @@ function candHTML(c,top){
   const av=c.avail||{};
   const rest=av.restDays==null?"—":av.restDays+"d";
   const chips=[
+    c.role?`<span class="chip ${roleClass(c.role)}">${c.role}</span>`:"",
     `<span class="chip ${c.multiInning?'green':''}">${c.ipApp.toFixed(2)} IP/app</span>`,
     `<span class="chip">${c.g}G/${c.gs}GS</span>`,
     av.label?`<span class="chip ${av.cls}">${av.label} · L7 ${av.ipLast7}IP · ${rest} rest</span>`:""
@@ -290,9 +296,9 @@ function showLeaderboard(){
   else leaderList.innerHTML=results.map((r,i)=>{
     const b=r.best, av=b.avail||{}, rest=av.restDays==null?"—":av.restDays+"d";
     const chips=[
+      b.role?`<span class="chip ${roleClass(b.role)}">${b.role}</span>`:"",
       `<span class="chip ${b.multiInning?'green':''}">${b.ipApp.toFixed(2)} IP/app</span>`,
       `<span class="chip">${b.g}G/${b.gs}GS</span>`,
-      b.swing?`<span class="chip hot">swingman</span>`:"",
       av.label?`<span class="chip ${av.cls}">${av.label} · L7 ${av.ipLast7}IP · ${rest} rest</span>`:""
     ].join("");
     return `<div class="lead-row ${i<3?'r'+(i+1):''}"><div class="rank">${r.rank}</div>

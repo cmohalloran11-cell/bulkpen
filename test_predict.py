@@ -124,6 +124,55 @@ class TestBulkScore(unittest.TestCase):
         self.assertFalse(b["multiInning"])   # ipApp 1.0 < 1.6
 
 
+class TestRole(unittest.TestCase):
+    """_role() combines season stats with avail log data to pick the right tag."""
+
+    def _av(self, days_since_start=None):
+        return {"daysSinceStart": days_since_start}
+
+    def _b(self, g, gs, ip):
+        return {"g": g, "gs": gs, "ip": ip, "ipApp": ip / g}
+
+    # Pure relievers (gs == 0) — role is purely ip/app based.
+    def test_pure_long_rp(self):
+        self.assertEqual(predict._role(self._b(30, 0, 65), self._av()), "long RP")   # ipApp 2.17
+
+    def test_pure_mid_long(self):
+        self.assertEqual(predict._role(self._b(30, 0, 48), self._av()), "mid-long")  # ipApp 1.6
+
+    def test_pure_middle_rp(self):
+        self.assertEqual(predict._role(self._b(30, 0, 30), self._av()), "middle RP") # ipApp 1.0
+
+    # Swingman — has starts and still mixing them (last start ≤ 21 days ago).
+    def test_swingman_recent_start(self):
+        b = self._b(20, 5, 55)   # gs/g = 0.25 >= 0.2
+        self.assertEqual(predict._role(b, self._av(days_since_start=10)), "swingman")
+
+    def test_swingman_start_exactly_21_days(self):
+        b = self._b(20, 5, 55)
+        self.assertEqual(predict._role(b, self._av(days_since_start=21)), "swingman")
+
+    # Demoted starter (Mikolas-style) — gs/g >= 0.2 but no start in >21 days.
+    def test_ex_starter_no_recent_start(self):
+        # 15G/5GS → gs/g 0.33 (meaningful rotation history); last start 30 days ago.
+        b = self._b(15, 5, 40)
+        self.assertEqual(predict._role(b, self._av(days_since_start=30)), "ex-starter")
+
+    def test_ex_starter_threshold_just_over(self):
+        b = self._b(15, 5, 40)
+        self.assertEqual(predict._role(b, self._av(days_since_start=22)), "ex-starter")
+
+    def test_ex_starter_no_log_data_falls_back_to_swingman(self):
+        # daysSinceStart=None means logs gave no evidence of a start — be conservative.
+        b = self._b(15, 5, 40)
+        self.assertEqual(predict._role(b, self._av(days_since_start=None)), "swingman")
+
+    def test_few_starts_below_threshold_treated_as_pure_reliever(self):
+        # gs/g = 0.1 < 0.2 → skip swingman branch, fall through to ip/app logic.
+        b = self._b(20, 2, 40)   # gs/g = 0.1, ipApp = 2.0
+        self.assertEqual(predict._role(b, self._av()), "long RP")
+
+
 class TestComputeAvail(unittest.TestCase):
     REF = date(2026, 6, 5)
 

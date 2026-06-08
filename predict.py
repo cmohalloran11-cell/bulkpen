@@ -270,6 +270,28 @@ def compute_avail(splits, ref):
             "label": label, "cls": cls, "adj": adj}
 
 
+def _role(b, av):
+    """Derive bullpen role from season stats + game-log recency.
+
+    Uses daysSinceStart from the avail dict to distinguish a recently demoted
+    starter (high gs/g but no starts in 3+ weeks) from a true swingman who
+    is still mixing starts into his current workload.
+    """
+    gs, g, ip_app = b["gs"], b["g"], b["ipApp"]
+    days_since_start = av.get("daysSinceStart")
+    if gs / g >= 0.2:
+        # Has meaningful starter history this season — check if still starting.
+        # >21 days with no start = moved to the bullpen; call it ex-starter.
+        if days_since_start is not None and days_since_start > 21:
+            return "ex-starter"
+        return "swingman"
+    if ip_app >= 2.0:
+        return "long RP"
+    if ip_app >= 1.4:
+        return "mid-long"
+    return "middle RP"
+
+
 # --------------------------------------------------- candidate assembly ------
 def team_relievers(team_id, season, ex=None):
     """Port of teamRelievers: rostered pitchers -> bulkScore -> sorted by base desc."""
@@ -311,7 +333,7 @@ def cand_dict(c):
         "base": s["base"],
         "ipApp": round(s["ipApp"], 2),
         "g": s["g"], "gs": s["gs"], "ip": round(s["ip"], 1),
-        "era": s["era"], "swing": s["swing"], "multiInning": s["multiInning"],
+        "era": s["era"], "swing": s["swing"], "multiInning": s["multiInning"], "role": _role(s, av),
         "avail": {
             "label": av.get("label", ""), "cls": av.get("cls", ""),
             "ipLast7": av.get("ipLast7"), "restDays": av.get("restDays"),
