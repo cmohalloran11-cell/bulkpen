@@ -354,7 +354,7 @@ def predict(date_str, fresh=False):
     games = get_slate(date_str)
 
     board, leaderboard = [], []
-    with ThreadPoolExecutor(max_workers=8) as ex:
+    with ThreadPoolExecutor(max_workers=16) as ex:   # I/O-bound MLB calls; more workers = faster cold compute
         # Prefetch probable-pitcher season stats (drives opener scoring) concurrently.
         probables = {(g["teams"][side]["probablePitcher"]["id"],
                       g["teams"][side]["probablePitcher"].get("fullName", ""))

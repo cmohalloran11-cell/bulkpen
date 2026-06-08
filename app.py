@@ -66,7 +66,17 @@ def api_predict(date):
         return jsonify({"error": "date must be YYYY-MM-DD"}), 400
     fresh = request.args.get("fresh") in ("1", "true", "yes")
     try:
-        return jsonify(predictor.predict(date, fresh=fresh))
+        resp = jsonify(predictor.predict(date, fresh=fresh))
+        # Edge-cache at Vercel's CDN: in-process caching dies with each serverless
+        # instance, but s-maxage lets the CDN serve a computed payload to everyone
+        # without re-invoking the function. stale-while-revalidate means once a date
+        # has been computed once, users always get an instant (possibly stale) result
+        # while a refresh happens in the background — no cold-compute timeouts.
+        resp.headers["Cache-Control"] = (
+            "no-store" if fresh
+            else "public, s-maxage=300, stale-while-revalidate=86400"
+        )
+        return resp
     except requests.RequestException as e:
         return jsonify({"error": "schedule fetch failed", "detail": str(e)}), 502
     except Exception as e:
