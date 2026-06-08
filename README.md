@@ -45,13 +45,13 @@ python backtest.py 2026-06-05 ...   # score past predictions vs. who actually at
 
 ## Deploy to Vercel
 
-The repo includes `vercel.json` + `api/index.py` (a serverless entrypoint that re-exports
-the Flask app). Import the repo at [vercel.com/new](https://vercel.com/new) and deploy — no
-settings needed. All routes are rewritten to the single Python function.
+The repo includes `vercel.json`, which builds `app.py` with `@vercel/python` and routes all
+requests to the Flask app. Import the repo at [vercel.com/new](https://vercel.com/new) and
+deploy — no settings needed.
 
 Caveat: the first prediction for a date does a lot of upstream calls (~several seconds), so a
-cold request can approach the function's `maxDuration` (set to 60s; the hobby plan allows up
-to 60s). The server-side cache makes every subsequent request for that date fast.
+cold request can approach the serverless function's duration limit. The server-side cache
+makes every subsequent request for that date fast.
 
 ## Data layer note
 
